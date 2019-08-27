@@ -28,8 +28,8 @@ class MainGUI:
         self.bool_output_entry = ttk.Entry(self.bool_output_frame, textvariable=self.bool_output_strvar,
                                            state="readonly", width=55)
         self.bool_output_entry.grid(row=0, column=0, sticky="WE", padx=3, pady=3)
-        tk_tooltip.Tooltip(self.bool_output_entry, text="This will be copied to clipboard as soon as you click "
-                                                        "on it.")
+        tk_tooltip.Tooltip(self.bool_output_entry, text="Output box for boolean search, "
+                                                        "automatically sent to clipboard.")
         self.any_n_of_entry = ttk.Entry()
         self.any_n_of_entry.destroy()
         self.generate_bool_button = ttk.Button()
@@ -160,13 +160,23 @@ class MainGUI:
         self.is_refreshing = False
 
     async def draw_bool_out(self):
+        self.generate_bool_button.config(state=tk.DISABLED)
         for row in self.inputs_list:
-            if row[1].get() == "":
-                if self.inputs_list.index(row) not in [0, 1]:
-                    await self.delete_bool_row(row)
+            try:
+                if row[1].get() == "":
+                    if self.inputs_list.index(row) not in [0, 1]:
+                        await self.delete_bool_row(row)
+            except AttributeError:
+                pass
         output_boolean = await core.generate_bool(int(self.how_many_match.get()), self.inputs_list)
         # print(output_boolean)
-        self.bool_output_strvar.set(output_boolean)
+        self.root.clipboard_clear()
+        self.root.clipboard_append(output_boolean)
+        if len(output_boolean) > 20000:
+            self.bool_output_strvar.set("Search too long, sent to clipboard.")
+        else:
+            self.bool_output_strvar.set(output_boolean)
+        self.generate_bool_button.config(state=tk.NORMAL)
 
     def __bool_output_highlight_all_callback(self, event):
         self.bool_output_entry.selection_range(0, tk.END)
