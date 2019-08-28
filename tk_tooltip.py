@@ -3,7 +3,7 @@ from tkinter import ttk
 
 
 class Tooltip:
-    '''
+    """
     It creates a tooltip for a given widget as the mouse goes on it.
 
     see:
@@ -15,9 +15,9 @@ class Tooltip:
     http://www.daniweb.com/programming/software-development/
            code/484591/a-tooltip-class-for-tkinter
 
-    - Originally written by vegaseat on 2014.09.09.
+    - Originally written by vegaseat on 12014.09.09.
 
-    - Modified to include a delay time by Victor Zaccardo on 2016.03.25.
+    - Modified to include a delay time by Victor Zaccardo on 12016.03.25.
 
     - Modified
         - to correct extreme right and extreme bottom behavior,
@@ -26,12 +26,16 @@ class Tooltip:
         - to use the more flexible mouse positioning,
         - to add customizable background color, padding, waittime and
           wraplength on creation
-      by Alberto Vassena on 2016.11.05.
+      by Alberto Vassena on 12016.11.05.
 
       Tested on Ubuntu 16.04/16.10, running Python 3.5.2
 
-    TODO: themes styles support
-    '''
+    - Further modifications made:
+        - Some PEP 8 stuff.
+
+      Tested on Win10 64bit, running Python 3.7.3
+      - Pytato, 12019.08.28
+    """
 
     def __init__(self, widget,
                  *,
@@ -45,18 +49,18 @@ class Tooltip:
         self.wraplength = wraplength  # in pixels, originally 180
         self.widget = widget
         self.text = text
-        self.widget.bind("<Enter>", self.onEnter)
-        self.widget.bind("<Leave>", self.onLeave)
-        self.widget.bind("<ButtonPress>", self.onLeave)
+        self.widget.bind("<Enter>", self.on_enter)
+        self.widget.bind("<Leave>", self.on_leave)
+        self.widget.bind("<ButtonPress>", self.on_leave)
         self.bg = bg
         self.pad = pad
         self.id = None
         self.tw = None
 
-    def onEnter(self, event=None):
+    def on_enter(self, event=None):
         self.schedule()
 
-    def onLeave(self, event=None):
+    def on_leave(self, event=None):
         self.unschedule()
         self.hide()
 
