@@ -3,6 +3,7 @@ import tkinter as tk
 import sys
 import multiprocessing
 from PIL import Image, ImageTk
+from timeit import default_timer as Timer
 
 import tk_tooltip
 import core
@@ -36,6 +37,7 @@ class MainGUI:
         self.generate_bool_button = ttk.Button()
         self.root.resizable(0, 0)
         self.inputs_list = []
+        self.row_scanner_timeout_timer = None
         self.root.iconbitmap(core.resource_path(r"./icons/nbool_icon.ico"))
         delete_image = Image.open(core.resource_path("./icons/win_delete_cross.ico")).resize((16, 16), Image.ANTIALIAS)
         self.delete_cross_image = ImageTk.PhotoImage(delete_image)
@@ -67,6 +69,13 @@ class MainGUI:
                                                      "integer type).")
 
     def update_how_many_match(self, any_n_of_entry):
+        now_time = Timer()
+        if self.row_scanner_timeout_timer is None:
+            self.row_scanner_timeout_timer = now_time
+        elif now_time - self.row_scanner_timeout_timer < 0.15:
+            return
+        self.row_scanner_timeout_timer = now_time
+
         try:
             if 2 <= int(self.how_many_match.get()) <= self.num_bool_rows():
                 any_n_of_entry.config(foreground="black")
@@ -97,34 +106,37 @@ class MainGUI:
     def gen_new_input_row(self, no_delete=False, gen_add_row_button=False,
                                 gen_refresh_button=False):
         row_bool_stringvar = tk.StringVar()
+        option_menu_stringvar = tk.StringVar()
         # Schema for this [ttk.Frame, tk.StringVar]
-        row_storage_struct = [ttk.Frame(self.boolean_frame), row_bool_stringvar]
+        row_storage_struct = [ttk.Frame(self.boolean_frame), row_bool_stringvar, option_menu_stringvar]
         self.inputs_list.append(row_storage_struct)
-        # print(await self.num_bool_rows())
-        # i = 0
-        # while self.boolean_frame.grid_slaves(row=i):
-        #     i += 1
-        # Should safeguard rows from overwriting
         row_iterable = 0
         while self.boolean_frame.grid_slaves(row=len(self.inputs_list)+row_iterable):
             row_iterable += 1
         row_storage_struct[0].grid(row=len(self.inputs_list)+row_iterable, sticky="WE")
         boolean_entry = ttk.Entry(row_storage_struct[0], width=50,
                                   textvariable=row_storage_struct[1])
+        must_mnot_eh_dropdown = ttk.Combobox(row_storage_struct[0],
+                                             values=["Currently does nothing",
+                                                     "Can have", "Must have", "Must not have"],
+                                             state="disabled")
+        must_mnot_eh_dropdown.current(0)
+        must_mnot_eh_dropdown.grid(row=0, column=0)
         if not no_delete:
             deletion_button = ttk.Button(row_storage_struct[0], image=self.delete_cross_image,
                                          command=lambda: self.delete_bool_row(row_storage_struct))
             deletion_button.image = self.delete_cross_image  # Used to avoid garbage collection
-            deletion_button.grid(row=0, column=2, padx=3, pady=2)
-            boolean_entry.grid(row=0, column=1, pady=3, padx=3)
+            deletion_button.grid(row=0, column=3, padx=3, pady=2)
+            boolean_entry.grid(row=0, column=2, pady=3, padx=3)
             tk_tooltip.Tooltip(deletion_button, text="Delete row.")
         else:
-            boolean_entry.grid(row=0, column=1, sticky="W", pady=3, padx=3)
+            boolean_entry.grid(row=0, column=2, sticky="W", pady=3, padx=3)
         if gen_add_row_button:
             add_new_row_button = ttk.Button(row_storage_struct[0], image=self.add_new_image,
                                             command=lambda: self.gen_new_input_row())
-            add_new_row_button.grid(row=0, column=2, padx=3, pady=2)
+            add_new_row_button.grid(row=0, column=3, padx=3, pady=2)
             tk_tooltip.Tooltip(add_new_row_button, text="Add new row at bottom.")
+        row_storage_struct[1].trace_add("write", self._handle_entry_editing)
 
         # Now generating the must (not) have box
         # test_checkbutton = ttk.Menubutton(row_storage_struct[0], )
@@ -150,12 +162,17 @@ class MainGUI:
     def num_bool_rows(self):
         row_num = 0
         for row_obj in self.inputs_list:
-            if row_obj[0] == "EMPTY":
+            try:
+                if row_obj[0] == "EMPTY" or row_obj[1].get() == "":
+                    pass
+                else:
+                    row_num += 1
+            except AttributeError:
                 pass
-            else:
-                row_num += 1
-
         return row_num
+
+    def _handle_entry_editing(self, *args):
+        self.update_how_many_match(self.any_n_of_entry)
 
     def refresh_entry_boxes(self):
         self.input_frame.destroy()
