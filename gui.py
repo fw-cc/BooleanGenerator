@@ -104,7 +104,11 @@ class MainGUI:
         # i = 0
         # while self.boolean_frame.grid_slaves(row=i):
         #     i += 1
-        row_storage_struct[0].grid(row=len(self.inputs_list), sticky="WE")
+        # Should safeguard rows from overwriting
+        row_iterable = 0
+        while self.boolean_frame.grid_slaves(row=len(self.inputs_list)+row_iterable):
+            row_iterable += 1
+        row_storage_struct[0].grid(row=len(self.inputs_list)+row_iterable, sticky="WE")
         boolean_entry = ttk.Entry(row_storage_struct[0], width=50,
                                   textvariable=row_storage_struct[1])
         if not no_delete:
