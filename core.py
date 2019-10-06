@@ -1,16 +1,22 @@
 from itertools import combinations as itertools_combinations
 import sys
+import multiprocessing
+import os
 
 
-async def generate_bool(n_must_match, list_of_terms):
-    while True:
-        try:
-            list_of_terms.pop(list_of_terms.index(["EMPTY", "EMPTY"]))
-        except ValueError:
-            break
-    formatted_list_of_terms = []
-    for item in list_of_terms:
-        formatted_list_of_terms.append(item[1].get())
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
+def generate_bool(n_must_match, formatted_list_of_terms, return_connection_pipe):
+
     output_listed = list(itertools_combinations(formatted_list_of_terms, n_must_match))
 
     formatted_string = ""
@@ -26,11 +32,13 @@ async def generate_bool(n_must_match, list_of_terms):
             formatted_string += ") OR "
         else:
             formatted_string += ")"
+    return_connection_pipe.send(formatted_string)
 
-    return formatted_string
 
 if __name__ == "__main__":
     assert sys.version_info >= (3, 7), "Minimum Python version: 3.7.0"
-    print(generate_bool(3, [["wadwadwadw", "test1"],
-                            ["wewawwefwf", "test2"],
-                            ["wadwafeawd", "test3"]]))
+    external_pipe, internal_pipe = multiprocessing.Pipe(False)
+    test_process = multiprocessing.Process(target=generate_bool,
+                                           args=(3, ["test1", "test2", "test3"], internal_pipe,))
+    test_process.start()
+    print(external_pipe.recv())
