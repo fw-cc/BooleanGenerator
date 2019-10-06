@@ -1,7 +1,7 @@
 import tkinter.ttk as ttk
 import tkinter as tk
-import asyncio
 import sys
+import multiprocessing
 from PIL import Image, ImageTk
 
 import tk_tooltip
@@ -12,7 +12,6 @@ class MainGUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Boolean Generator")
-        self.event_loop = asyncio.get_event_loop()
         self.bool_entry_dict = {}
         self.how_many_match = tk.StringVar(value="2")
         self.option_frame = ttk.Frame(self.root)
@@ -36,7 +35,6 @@ class MainGUI:
         self.any_n_of_entry.destroy()
         self.generate_bool_button = ttk.Button()
         self.root.resizable(0, 0)
-        self.is_refreshing = False
         self.inputs_list = []
         self.root.iconbitmap(core.resource_path(r"./icons/nbool_icon.ico"))
         delete_image = Image.open(core.resource_path("./icons/win_delete_cross.ico")).resize((16, 16), Image.ANTIALIAS)
@@ -49,19 +47,18 @@ class MainGUI:
                                                                                                    Image.ANTIALIAS)
         self.green_arrow_right = ImageTk.PhotoImage(green_arrow_right)
         self.bool_output_entry.bind("<FocusIn>", func=self.__bool_output_highlight_all_callback)
-        asyncio.run(self.gen_option_frame())
-        asyncio.run(self.gen_input_frame())
-        asyncio.run(self.main_loop())
-        self.event_loop.run_forever()
+        self.gen_option_frame()
+        self.gen_input_frame()
+        self.root.mainloop()
 
-    async def gen_option_frame(self):
+    def gen_option_frame(self):
         modes_info_1 = ttk.Label(self.option_frame, text="Any ")
         modes_info_2 = ttk.Label(self.option_frame, text=" must match. ")
         self.any_n_of_entry = ttk.Entry(self.option_frame, textvariable=self.how_many_match,
                                         width=2, exportselection=0)
         self.how_many_match.trace_add("write",
-                                      lambda *args: asyncio.create_task(self.update_how_many_match(
-                                          self.any_n_of_entry)))
+                                      lambda *args: self.update_how_many_match(
+                                          self.any_n_of_entry))
         modes_info_1.grid(row=0, column=0)
         self.any_n_of_entry.grid(row=0, column=1)
         modes_info_2.grid(row=0, column=2)
@@ -69,9 +66,9 @@ class MainGUI:
                                                      "less than or equal to number of inputs, "
                                                      "integer type).")
 
-    async def update_how_many_match(self, any_n_of_entry):
+    def update_how_many_match(self, any_n_of_entry):
         try:
-            if 2 <= int(self.how_many_match.get()) <= await self.num_bool_rows():
+            if 2 <= int(self.how_many_match.get()) <= self.num_bool_rows():
                 any_n_of_entry.config(foreground="black")
                 self.generate_bool_button.config(state=tk.NORMAL)
             else:
@@ -85,20 +82,19 @@ class MainGUI:
         except NameError:
             pass
 
-    async def gen_input_frame(self):
-        await self.gen_new_input_row(no_delete=True, gen_refresh_button=True)
-        await self.gen_new_input_row(no_delete=True, gen_add_row_button=True)
+    def gen_input_frame(self):
+        self.gen_new_input_row(no_delete=True, gen_refresh_button=True)
+        self.gen_new_input_row(no_delete=True, gen_add_row_button=True)
         self.generate_bool_button.destroy()
         self.generate_bool_button = ttk.Button(self.bool_button_frame, text="Generate Boolean",
                                                image=self.green_arrow_right, compound="left",
-                                               command=lambda: asyncio.create_task(
-                                                   self.draw_bool_out()))
+                                               command=lambda: self.draw_bool_out())
         self.generate_bool_button.grid(column=0, pady=2, sticky="W")
         tk_tooltip.Tooltip(self.generate_bool_button, text="Generate boolean search term based "
                                                            "on text entries. Deletes all empty "
                                                            "rows.")
 
-    async def gen_new_input_row(self, no_delete=False, gen_add_row_button=False,
+    def gen_new_input_row(self, no_delete=False, gen_add_row_button=False,
                                 gen_refresh_button=False):
         row_bool_stringvar = tk.StringVar()
         # Schema for this [ttk.Frame, tk.StringVar]
@@ -113,8 +109,7 @@ class MainGUI:
                                   textvariable=row_storage_struct[1])
         if not no_delete:
             deletion_button = ttk.Button(row_storage_struct[0], image=self.delete_cross_image,
-                                         command=lambda: asyncio.create_task(self.delete_bool_row(
-                                             row_storage_struct)))
+                                         command=lambda: self.delete_bool_row(row_storage_struct))
             deletion_button.image = self.delete_cross_image  # Used to avoid garbage collection
             deletion_button.grid(row=0, column=2, padx=3, pady=2)
             boolean_entry.grid(row=0, column=1, pady=3, padx=3)
@@ -123,8 +118,7 @@ class MainGUI:
             boolean_entry.grid(row=0, column=1, sticky="W", pady=3, padx=3)
         if gen_add_row_button:
             add_new_row_button = ttk.Button(row_storage_struct[0], image=self.add_new_image,
-                                            command=lambda: asyncio.create_task(
-                                                self.gen_new_input_row()))
+                                            command=lambda: self.gen_new_input_row())
             add_new_row_button.grid(row=0, column=2, padx=3, pady=2)
             tk_tooltip.Tooltip(add_new_row_button, text="Add new row at bottom.")
 
@@ -140,16 +134,16 @@ class MainGUI:
             refresh_window_button.grid(row=0, column=1, padx=3, pady=2)
             tk_tooltip.Tooltip(refresh_window_button, text="Regenerate boolean term entry area. (BROKEN)")
         """
-        await self.update_how_many_match(self.any_n_of_entry)
+        self.update_how_many_match(self.any_n_of_entry)
 
-    async def delete_bool_row(self, row_storage_struct):
+    def delete_bool_row(self, row_storage_struct):
         row_storage_struct[0].grid_remove()
         row_storage_struct[0].destroy()
         self.inputs_list[self.inputs_list.index(row_storage_struct)] = ["EMPTY", "EMPTY"]
-        await self.update_how_many_match(self.any_n_of_entry)
+        self.update_how_many_match(self.any_n_of_entry)
         # print(await self.num_bool_rows())
 
-    async def num_bool_rows(self):
+    def num_bool_rows(self):
         row_num = 0
         for row_obj in self.inputs_list:
             if row_obj[0] == "EMPTY":
@@ -159,9 +153,8 @@ class MainGUI:
 
         return row_num
 
-    async def refresh_entry_boxes(self):
+    def refresh_entry_boxes(self):
         self.input_frame.destroy()
-        self.is_refreshing = True
         self.input_frame = ttk.Labelframe(self.root, text="Boolean Search Terms")
         self.input_frame.grid(row=1, column=0, pady=5, padx=5)
         self.boolean_frame = ttk.Frame(self.input_frame)
@@ -176,10 +169,9 @@ class MainGUI:
         self.bool_output_entry.grid(row=0, column=0, sticky="WE")
         self.bool_output_strvar.set("")
         self.inputs_list = []
-        await self.gen_input_frame()
-        self.is_refreshing = False
+        self.gen_input_frame()
 
-    async def draw_bool_out(self):
+    def draw_bool_out(self):
         """Generates the boolean search string, sends it to clipboard and into a stringvar that
         is displayed at the bottom of the window. Even with asyncio, freezes up the GUI when
         generating "match 10 from 20" due to it yielding a wondrous 12 million characters.
@@ -193,7 +185,7 @@ class MainGUI:
                     #     await self.delete_bool_row(row)
             except AttributeError:
                 pass
-        output_boolean = await core.generate_bool_coro(int(self.how_many_match.get()), self.inputs_list)
+        output_boolean = core.generate_bool(int(self.how_many_match.get()), self.inputs_list)
         # print(output_boolean)
         self.root.clipboard_clear()
         self.root.clipboard_append(output_boolean)
@@ -205,15 +197,6 @@ class MainGUI:
 
     def __bool_output_highlight_all_callback(self, event):
         self.bool_output_entry.selection_range(0, tk.END)
-
-    async def main_loop(self):
-        while True:
-            try:
-                if not self.is_refreshing:
-                    self.root.update()
-            except tk.TclError:
-                sys.exit()
-            await asyncio.sleep(0.0001)
 
 
 if __name__ == "__main__":
