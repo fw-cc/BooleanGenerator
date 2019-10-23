@@ -15,7 +15,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
-def generate_bool(n_must_match, formatted_list_of_terms, return_connection_pipe):
+def generate_bool(n_must_match, formatted_list_of_terms, return_connection_pipe=None):
 
     output_listed = list(itertools_combinations(formatted_list_of_terms, n_must_match))
 
@@ -32,7 +32,10 @@ def generate_bool(n_must_match, formatted_list_of_terms, return_connection_pipe)
             formatted_string += ") OR "
         else:
             formatted_string += ")"
-    return_connection_pipe.send(formatted_string)
+    if return_connection_pipe is not None:
+        return_connection_pipe.send(formatted_string)
+    else:
+        return formatted_string
 
 
 if __name__ == "__main__":
