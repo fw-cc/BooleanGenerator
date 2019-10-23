@@ -37,6 +37,7 @@ class MainGUI:
         self.any_n_of_entry = ttk.Entry()
         self.any_n_of_entry.destroy()
         self.generate_bool_button = ttk.Button()
+        self.search_loading_bar = ttk.Progressbar()
         self.root.resizable(0, 0)
         self.inputs_list = []
         self.class_side_pipe, self.process_side_pipe = multiprocessing.Pipe()
@@ -100,9 +101,9 @@ class MainGUI:
         self.generate_bool_button = ttk.Button(self.bool_button_frame, text="Generate Boolean",
                                                image=self.green_arrow_right, compound="left",
                                                command=lambda: self.draw_bool_out())
-        self.generate_bool_button.grid(column=0, pady=2, sticky="W")
+        self.generate_bool_button.grid(column=0, pady=2)
         tk_tooltip.Tooltip(self.generate_bool_button, text="Generate boolean search term based "
-                                                           "on text entries. Deletes all empty "
+                                                           "on text entries. Ignores empty "
                                                            "rows.")
 
     def gen_new_input_row(self, no_delete=False, gen_add_row_button=False,
@@ -182,9 +183,8 @@ class MainGUI:
         self.gen_input_frame()
 
     def draw_bool_out(self):
-        """Generates the boolean search string, sends it to clipboard and into a stringvar that
-        is displayed at the bottom of the window. Even with asyncio, freezes up the GUI when
-        generating "match 10 from 20" due to it yielding a wondrous 12 million characters.
+        """Generates the boolean search string, if this would freeze up the GUI, opens a new
+        Python process to do the job and awaits the result in the mainloop replacement.
         """
         global bool_output_process
 
@@ -201,13 +201,28 @@ class MainGUI:
                     formatted_list_of_terms.append(item[1].get())
             except AttributeError:
                 formatted_list_of_terms.append(item[1])
+        if self.num_bool_rows() > 10:
+            self.search_loading_bar.destroy()
+            self.search_loading_bar = ttk.Progressbar(self.bool_button_frame, orient=tk.HORIZONTAL,
+                                                      mode="indeterminate", length=440)
+            self.search_loading_bar.grid(column=0, row=1, pady=2)
+            self.search_loading_bar.start()
+            bool_output_process = multiprocessing.Process(
+                target=core.generate_bool,
+                args=(int(self.how_many_match.get()), formatted_list_of_terms,),
+                kwargs={"return_connection_pipe": self.process_side_pipe},)
 
-        bool_output_process = multiprocessing.Process(target=core.generate_bool,
-                                                      args=(int(self.how_many_match.get()),
-                                                            formatted_list_of_terms,
-                                                            self.process_side_pipe,))
-        bool_output_process.start()
-        self.is_waiting_for_pipe = True
+            bool_output_process.start()
+            self.is_waiting_for_pipe = True
+        else:
+            bool_search_output = core.generate_bool(int(self.how_many_match.get()), formatted_list_of_terms)
+            self.root.clipboard_clear()
+            self.root.clipboard_append(bool_search_output)
+            if len(bool_search_output) > 10000:
+                self.bool_output_strvar.set("Search too long, sent to clipboard.")
+            else:
+                self.bool_output_strvar.set(bool_search_output)
+            self.generate_bool_button.config(state=tk.NORMAL)
 
     def __bool_output_highlight_all_callback(self, event):
         self.bool_output_entry.selection_range(0, tk.END)
@@ -227,6 +242,7 @@ class MainGUI:
                             self.bool_output_strvar.set("Search too long, sent to clipboard.")
                         else:
                             self.bool_output_strvar.set(output_boolean)
+                        self.search_loading_bar.destroy()
                         self.generate_bool_button.config(state=tk.NORMAL)
                         self.is_waiting_for_pipe = False
                         bool_output_process.terminate()

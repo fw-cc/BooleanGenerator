@@ -1,10 +1,11 @@
-import setup
+# import setup
 import os.path
 import json
 import sys
 
 if __name__ == "__main__":
     assert sys.version_info >= (3, 7), "Minimum Python version: 3.7.0"
+    """
     if not os.path.exists("./configinfo.json"):
         with open("./configinfo.json", "w") as configinfo_json:
             json.dump({"first_time_setup": False}, configinfo_json, indent=2)
@@ -25,6 +26,7 @@ if __name__ == "__main__":
 
     with open("./configinfo.json", "w") as configinfo_json:
         json.dump(loaded_json_obj, configinfo_json, indent=2)
+    """
 
     import gui
     gui_object = gui.MainGUI()
